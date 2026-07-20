@@ -41,21 +41,35 @@ jobs:
         run: |
           pytest tests/ -v --tb=short || echo "Tests completed (non-critical)"
 
-      - name: Setup Crawl4AI (Playwright)
-        run: |
-          crawl4ai-setup
-          python -c "from crawl4ai import AsyncWebCrawler; print('Crawl4AI OK')"
-
       - name: Setup SearXNG
         run: |
           git clone --depth 1 https://github.com/searxng/searxng /tmp/searxng
-          ls /tmp/searxng/
           cd /tmp/searxng
           pip install msgspec
           pip install --no-build-isolation -e .
           cp $GITHUB_WORKSPACE/config/settings.yml /tmp/searxng/searx/settings.yml
           cd /tmp/searxng
           python -m searx &
+          SEARXNG_PID=$!
+          echo "SEARXNG_PID=$SEARXNG_PID" >> $GITHUB_ENV
+          echo "Waiting for SearXNG to start..."
+          for i in {1..30}; do
+            if curl -s "${SEARXNG_BASE_URL}/search?q=test&format=json" > /dev/null 2>&1; then
+              echo "SearXNG is ready!"
+              break
+            fi
+            sleep 2
+          done
+          curl -s "${SEARXNG_BASE_URL}/search?q=test&format=json" | python -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          print(f'SearXNG OK: {len(data.get(\"results\", []))} results')
+          "
+
+      - name: Setup Crawl4AI (Playwright)
+        run: |
+          crawl4ai-setup
+          python -c "from crawl4ai import AsyncWebCrawler; print('Crawl4AI OK')"
           SEARXNG_PID=$!
           echo "SEARXNG_PID=$SEARXNG_PID" >> $GITHUB_ENV
           echo "Waiting for SearXNG to start..."
