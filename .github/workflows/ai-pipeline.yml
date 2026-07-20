@@ -47,7 +47,7 @@ jobs:
           git clone --depth 1 https://github.com/searxng/searxng /tmp/searxng
           cd /tmp/searxng
           pip install msgspec
-          pip install -e .
+          pip install --no-build-isolation -e .
           cp $GITHUB_WORKSPACE/config/settings.yml /tmp/searxng/searxng/settings.yml
           cd /tmp/searxng
           python -m searxng &
