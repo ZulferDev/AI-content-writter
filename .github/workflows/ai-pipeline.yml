@@ -70,8 +70,9 @@ jobs:
           pip install msgspec
           pip install --no-build-isolation -e .
           cp $GITHUB_WORKSPACE/config/settings.yml /tmp/searxng/searx/settings.yml
+          export SEARXNG_SETTINGS_PATH=/tmp/searxng/searx/settings.yml
           cd /tmp/searxng
-          python -m searx &
+          python -m searx.webapp &
           SEARXNG_PID=$!
           echo "SEARXNG_PID=$SEARXNG_PID" >> $GITHUB_ENV
           echo "Waiting for SearXNG to start..."
