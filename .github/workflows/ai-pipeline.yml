@@ -77,13 +77,13 @@ jobs:
           echo "SEARXNG_PID=$SEARXNG_PID" >> $GITHUB_ENV
           echo "Waiting for SearXNG to start..."
           for i in {1..30}; do
-            if curl -s "${SEARXNG_BASE_URL}/search?q=test&format=json" > /dev/null 2>&1; then
+            if curl -s -H "X-Forwarded-For: 127.0.0.1" "${SEARXNG_BASE_URL}/search?q=test&format=json" > /dev/null 2>&1; then
               echo "SearXNG is ready!"
               break
             fi
             sleep 2
           done
-          curl -s "${SEARXNG_BASE_URL}/search?q=test&format=json" | python -c "
+          curl -s -H "X-Forwarded-For: 127.0.0.1" "${SEARXNG_BASE_URL}/search?q=test&format=json" | python -c "
           import sys, json
           data = json.load(sys.stdin)
           print(f'SearXNG OK: {len(data.get(\"results\", []))} results')

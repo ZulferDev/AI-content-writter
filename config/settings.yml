@@ -1,7 +1,6 @@
 # ============================================================
 # SEARXNG SETTINGS (Minimal Configuration)
 # ============================================================
-# [USER] Sesuaikan engine config jika diperlukan
 
 use_default_settings: true
 
@@ -28,6 +27,12 @@ ui:
 
 redis:
   url: false
+
+default_doi_resolver: "oadoi"
+doi_resolvers:
+  oadoi:
+    name: "oaDOI"
+    url: "https://api.oadoi.org/v2/{doi}"
 
 enabled_plugins:
   - "Hash plugin"
