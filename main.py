@@ -12,6 +12,8 @@ import sys
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
+
+import httpx
 import yaml
 
 logging.basicConfig(
