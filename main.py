@@ -1,0 +1,197 @@
+#!/usr/bin/env python
+"""
+AI Content Pipeline - Entry Point
+"""
+
+import argparse
+import json
+import logging
+import os
+import re
+import sys
+from collections import Counter
+from datetime import datetime, timezone
+from pathlib import Path
+import yaml
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+logger = logging.getLogger("ai-pipeline")
+
+PROJECT_ROOT = Path(__file__).parent
+CONFIG_DIR = PROJECT_ROOT / "config"
+OUTPUT_DIR = PROJECT_ROOT / "output"
+
+SEARXNG_BASE_URL = os.environ.get("SEARXNG_BASE_URL", "http://localhost:8888")
+
+def check_services():
+    """Validate all required services are running."""
+    logger.info("Checking services...")
+    try:
+        with httpx.Client(timeout=5) as client:
+            resp = client.get(f"{SEARXNG_BASE_URL}/search?q=test&format=json")
+            resp.raise_for_status()
+            logger.info(f"SearXNG is running at {SEARXNG_BASE_URL}.")
+    except Exception as e:
+        raise RuntimeError(f"SearXNG service is NOT reachable at {SEARXNG_BASE_URL}: {e}")
+
+def load_niche_config(niche: str = "pendidikan") -> dict:
+    config_path = CONFIG_DIR / "niche.yaml"
+    with open(config_path) as f:
+        config = yaml.safe_load(f)
+    return config
+
+def strip_mdx_frontmatter(content: str) -> str:
+    if not content: return content
+    text = content.strip()
+    text = re.sub(r"^```(?:mdx)?\s*", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\s*```$", "", text)
+    text = re.sub(r"^---\s*\n(.*?)\n---\s*\n", "", text, flags=re.DOTALL)
+    text = re.sub(r"^#\s+.+\n+", "", text, count=1)
+    return text.strip()
+
+def save_output(articles: list[dict], output_path: Path):
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(articles, f, ensure_ascii=False, indent=2)
+
+def insert_to_supabase(articles: list[dict]) -> list[dict]:
+    from utils.supabase_client import SupabaseClient
+    client = SupabaseClient()
+    return client.insert_many_blog_posts(articles)
+
+def parse_json_from_output(output: str) -> dict:
+    """Extract JSON from crew output."""
+    json_match = re.search(r"\{.*\}", output, re.DOTALL)
+    if json_match:
+        return json.loads(json_match.group())
+    raise ValueError(f"Could not parse JSON from output: {output}")
+
+def parse_json_list_from_output(output: str) -> list[dict]:
+    """Extract JSON list from crew output."""
+    json_match = re.search(r"\[.*\]", output, re.DOTALL)
+    if json_match:
+        return json.loads(json_match.group())
+    raise ValueError(f"Could not parse JSON list from output: {output}")
+
+def prepare_article(article: dict, allowed_categories: list[str] | None = None) -> dict | None:
+    """Clean and validate article before insert. Returns None if duplicate."""
+    from utils.supabase_client import SupabaseClient
+
+    article["content"] = strip_mdx_frontmatter(article.get("content", ""))
+    article.setdefault("ai_generated", True)
+    article.setdefault("is_draft", True)
+    article.setdefault("author", "Tim Pelajarsenja")
+    article.setdefault("editor", "Fajar Hadi Tama")
+
+    slug = article.get("slug", "")
+    if not slug or slug.strip() == "":
+        article["slug"] = SupabaseClient.generate_slug(article.get("title", "untitled"))
+
+    if not article.get("pub_date"):
+        article["pub_date"] = datetime.now(timezone.utc).isoformat()
+
+    categories = article.get("categories", [])
+    if allowed_categories:
+        valid = [c for c in categories if c in allowed_categories]
+        if not valid:
+            logger.warning(f"No valid categories for '{article.get('title')}'. Falling back to first allowed category.")
+            valid = [allowed_categories[0]]
+        article["categories"] = valid
+
+    return article
+
+def run_pipeline(niche: str):
+    check_services()
+    niche_config = load_niche_config(niche)
+
+    from crew.content_crew import IdeationCrew, ArticleCrew
+    from utils.supabase_client import SupabaseClient
+
+    supabase = SupabaseClient()
+
+    existing_articles = supabase.get_existing_articles()
+    existing_titles = [a["title"] for a in existing_articles]
+    existing_slugs = {a.get("slug", "") for a in existing_articles}
+    logger.info(f"Found {len(existing_titles)} existing articles for deduplication")
+
+    allowed_categories = niche_config.get("categories", [])
+    category_counts = Counter()
+    for article in existing_articles:
+        for cat in (article.get("categories") or []):
+            if cat in allowed_categories:
+                category_counts[cat] += 1
+    category_distribution = "\n".join(
+        f"  - {cat}: {category_counts.get(cat, 0)} artikel"
+        for cat in allowed_categories
+    )
+
+    phase1_inputs = {
+        "niche": niche,
+        "target_audience": niche_config.get("target_audience", "pelajar Indonesia"),
+        "existing_content_list": "\n".join(existing_titles) if existing_titles else "Belum ada konten.",
+        "allowed_categories": ", ".join(allowed_categories),
+    }
+    phase1_result = IdeationCrew().crew().kickoff(inputs=phase1_inputs)
+    ideas = parse_json_list_from_output(str(phase1_result))
+
+    all_articles = []
+    errors = []
+
+    for i, idea in enumerate(ideas):
+        try:
+            logger.info(f"Processing article {i+1}/{len(ideas)}: {idea.get('title', 'Untitled')}")
+            article_inputs = {
+                "title": idea["title"],
+                "purpose": idea.get("purpose", ""),
+                "target_audience": niche_config.get("target_audience", "pelajar Indonesia"),
+                "suggested_categories": ", ".join(idea.get("suggested_categories", [])),
+                "research_summary": idea.get("research", ""),
+                "alt_text_image": idea.get("alt_text_image", ""),
+            }
+            result = ArticleCrew().crew().kickoff(inputs=article_inputs)
+            article = parse_json_from_output(str(result))
+
+            article = prepare_article(article, allowed_categories)
+            if not article:
+                continue
+
+            if article["slug"] in existing_slugs:
+                logger.warning(f"Duplicate slug '{article['slug']}' — skipping '{article.get('title')}'")
+                errors.append({"index": i, "title": article.get("title", "Unknown"), "error": "Duplicate slug"})
+                continue
+
+            insert_to_supabase([article])
+            existing_slugs.add(article["slug"])
+            all_articles.append(article)
+            logger.info(f"Article {i+1} inserted successfully (slug: {article.get('slug')})")
+
+        except Exception as e:
+            logger.error(f"Failed to process article {i+1}: {e}", exc_info=True)
+            errors.append({"index": i, "title": idea.get("title", "Unknown"), "error": str(e)})
+            continue
+
+    if all_articles:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        save_output(all_articles, OUTPUT_DIR / f"final_{timestamp}.json")
+
+    if errors:
+        logger.warning(f"Completed with {len(errors)} errors out of {len(ideas)} articles")
+        save_output(errors, OUTPUT_DIR / f"errors_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
+
+    logger.info(f"Pipeline complete: {len(all_articles)} articles saved, {len(errors)} errors")
+
+def main():
+    parser = argparse.ArgumentParser(description="AI Content Pipeline")
+    parser.add_argument("--niche", type=str, default="pendidikan")
+    args = parser.parse_args()
+    try:
+        run_pipeline(args.niche)
+    except Exception as e:
+        logger.error("Pipeline failed: %s", e, exc_info=True)
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,29 @@
+# ============================================================
+# NICHE CONFIGURATION
+# ============================================================
+# [USER] Sesuaikan niche, target audience, dan categories
+# sesuai kebutuhan blog Anda.
+
+niche: "pendidikan"
+target_audience: "pelajar Indonesia"
+categories:
+  - "Career Prep"
+  - "Personal Branding"
+  - "Professional Growth"
+  - "Productivity"
+  - "Study Hacks"
+  - "Digital Wellbeing"
+  - "Networking"
+  - "Soft Skills"
+  - "Skill Development"
+  - "Learning Tools"
+author: "Tim Pelajarsenja"
+editor: "Fajar Hadi Tama"
+
+# Keywords tambahan yang relevan dengan niche
+# [USER] Tambahkan keywords spesifik sesuai kebutuhan
+related_keywords:
+  - "belajar"
+  - "tips belajar"
+  - "strategi belajar"
+  - "motivasi belajar"

@@ -1,0 +1,236 @@
+# ============================================================
+# CREWAI TASKS CONFIGURATION
+# ============================================================
+# Task descriptions adalah prompt yang akan diterima agent.
+
+# ---- Phase 1: Ideation & Research (Batch) ----
+
+ideation_task:
+  description: >-
+    Lihat daftar konten yang sudah ada di blog:
+    {existing_content_list}
+
+    Kategori yang TERSEDIA (HANYA gunakan ini, JANGAN buat kategori baru):
+    {allowed_categories}
+
+    Generate 5 ide konten baru untuk niche "{niche}" dengan
+    target audience "{target_audience}".
+
+    Untuk setiap ide, sediakan:
+    1. title: Judul artikel yang menarik dan SEO-friendly
+    2. alt_text_image: Alt text untuk gambar ilustrasi
+    3. reason: Alasan kenapa ide ini dipilih
+    4. purpose: Tujuan konten (apa yang ingin dicapai)
+    5. suggested_categories: Kategori dari daftar yang disediakan (pilih 1-2 kategori)
+
+    Pastikan ide-ide TIDAK duplikat dari konten yang sudah ada.
+    Variasikan angle dan sudut pandang, dan distribusikan kategori secara merata
+    —prioritaskan kategori yang masih jarang terisi.
+  expected_output: >-
+    JSON array dengan 5 ide. Setiap ide memiliki fields:
+    title, alt_text_image, reason, purpose, suggested_categories (as array of strings).
+  agent: ide_agent
+
+research_task:
+  description: >-
+    Kamu menerima output dari ideation_task yang berisi 5 ide konten.
+
+    PENTING: Kamu WAJIB meriset KE-LIMA ide tersebut. Jangan skip atau
+    abaikan ide manapun. Lakukan langkah berikut untuk SETIAP ide:
+
+    1. Ambil title dari setiap ide sebagai keyword untuk search di SearXNG
+       menggunakan tool `searxng_search` atau `searxng_multi_search`
+    2. Dari hasil search, pilih 5-10 URL yang paling relevan
+    3. Crawl setiap URL menggunakan tool `web_crawl`
+    4. Ringkas semua informasi menjadi satu ringkasan per ide
+
+    Untuk setiap ide, output harus berisi:
+    - title: Judul ide asli
+    - alt_text_image: Alt text ide asli
+    - reason: Alasan ide asli
+    - purpose: Tujuan ide asli
+    - suggested_categories: Kategori ide asli
+    - research: Ringkasan hasil riset dalam format markdown, lengkap dengan sumber (sources)
+
+    Output harus berupa JSON array dengan 5 item (satu per ide, yang memuat detail ide asli dan research-nya).
+  expected_output: >-
+    JSON array dengan 5 item. Setiap item memiliki fields:
+    title, alt_text_image, reason, purpose, suggested_categories, research.
+  agent: research_agent
+  context:
+    - ideation_task
+
+# ---- Phase 2: Per-Article Processing (Sequential, One by One) ----
+
+writing_task:
+  description: >-
+    Tulis artikel MDX berkualitas tinggi untuk satu topik berikut dengan menerapkan teknik penulisan
+    ber-retensi tinggi (adiktif layaknya video pendek, menggunakan buckets brigades, cliffhanger, dan tanpa lemak tulisan):
+    
+    Topik: {title}
+    Tujuan: {purpose}
+    Target Audience: {target_audience}
+    Kategori: {suggested_categories}
+    Riset Pendukung: {research_summary}
+
+    Ketentuan menulis:
+    1. Format MDX dengan frontmatter lengkap:
+       - title: "{title}"
+       - description: (meta description, maks 155 karakter)
+       - pub_date: (tanggal hari ini)
+       - categories: [{suggested_categories}]
+        - author: "Tim Pelajarsenja"
+        - editor: "Fajar Hadi Tama"
+        - alt_text_image: "{alt_text_image}"
+     2. Target: 1500-1700 kata
+    3. Gunakan heading structure yang rapi: H1 -> H2 -> H3
+    4. Pastikan konten berbasis fakta dari riset pendukung yang disediakan
+    5. Jangan membuat data palsu
+    6. Gunakan placeholder [DATA: butuh sumber] jika perlu data tambahan yang tidak ada di riset
+    7. Paragraf pendek (maks 2-3 kalimat) agar mobile-friendly dan penuh dengan white space (scannable).
+  expected_output: >-
+    Artikel MDX lengkap dengan frontmatter dan body artikel.
+  agent: writer_agent
+
+eeat_trust_review_task:
+  description: >-
+    Review artikel dari writing_task berdasarkan standar E-E-A-T Google (Experience, Expertise, Authoritativeness, Trustworthiness).
+    Riset acuan sebagai pembanding: {research_summary}
+
+    Berikan skor 1-10 untuk aspek E-E-A-T & Trust:
+    - Experience: Apakah ada elemen pengalaman langsung/perspektif unik dan bukan sekadar rangkuman informasi biasa?
+    - Trust & Accuracy: Apakah data/statistik valid berdasarkan riset acuan? Apakah bebas dari halusinasi data atau klaim tanpa dasar?
+    
+    Berikan skor (1-10) dan feedback perbaikan yang spesifik dan konkret.
+  expected_output: >-
+    JSON object:
+    {
+      "aspect": "eeat_trust",
+      "score": 8,
+      "feedback": ["saran 1", "saran 2"]
+    }
+  agent: eeat_trust_reviewer
+  context:
+    - writing_task
+
+seo_ux_review_task:
+  description: >-
+    Review artikel dari writing_task berdasarkan performa SEO modern dan kenyamanan membaca (UX/Readability).
+
+    Berikan skor 1-10 untuk aspek SEO & UX:
+    - SEO Teknis: Struktur heading (H1, H2, H3) logis, meta description efektif (maks 155 karakter), alur keyword natural.
+    - UX Readability: Apakah paragraf pendek-pendek (maks 2-3 kalimat)? Apakah ritmenya mengalir adiktif dengan teknik Buckets Brigades atau cliffhanger yang membuat pembaca betah berlama-lama (meningkatkan dwell time)?
+
+    Berikan skor (1-10) dan feedback perbaikan yang spesifik dan konkret.
+  expected_output: >-
+    JSON object:
+    {
+      "aspect": "seo_ux",
+      "score": 7,
+      "feedback": ["saran 1", "saran 2"]
+    }
+  agent: seo_ux_reviewer
+  context:
+    - writing_task
+
+people_first_review_task:
+  description: >-
+    Review artikel dari writing_task untuk memastikan konten mematuhi standar Google "People-First" dan sangat relevan dengan {target_audience}.
+    Tujuan awal konten: {purpose}
+
+    Berikan skor 1-10 untuk aspek People-First:
+    - Niat Pencarian: Apakah langsung menjawab search intent audiens tanpa bertele-tele atau penuh teks pengisi (filler content/lemak tulisan)?
+    - Nilai Tambah: Apakah artikel memberikan kepuasan instan (micro-rewards) dan pemahaman tuntas sehingga audiens tidak perlu kembali ke mesin pencari mencari artikel lain?
+
+    Berikan skor (1-10) dan feedback perbaikan yang spesifik dan konkret.
+  expected_output: >-
+    JSON object:
+    {
+      "aspect": "people_first",
+      "score": 8,
+      "feedback": ["saran 1", "saran 2"]
+    }
+  agent: people_first_reviewer
+  context:
+    - writing_task
+
+aggregate_review_task:
+  description: >-
+    Gabungkan hasil review dari 3 kriteria utama Google (eeat_trust, seo_ux, people_first) yang telah disediakan dalam konteks tugas ini.
+
+    PENTING - Lakukan Pembobotan Skor Sesuai Standar Google:
+    1. Ekstrak skor 1-10 dari ketiga aspek.
+    2. Hitung Nilai Akhir (Final Weighted Score) dengan rumus bobot berikut:
+       - eeat_trust = Bobot 40% (0.40)
+       - people_first = Bobot 40% (0.40)
+       - seo_ux = Bobot 20% (0.20)
+       Rumus: (eeat_trust * 0.4) + (people_first * 0.4) + (seo_ux * 0.2)
+    3. Tetapkan threshold kelulusan final_weighted_score >= 8.0. 
+       Jika score >= 8.0, maka needs_editing = false. Jika < 8.0, maka needs_editing = true.
+    4. Satukan seluruh daftar feedback dari ketiga sub-reviewers menjadi satu list tunggal.
+    5. Berikan kesimpulan ringkas yang objektif.
+  expected_output: >-
+    JSON object gabungan:
+    {
+      "scores": {
+        "eeat_trust": 8,
+        "people_first": 8,
+        "seo_ux": 7
+      },
+      "final_weighted_score": 7.8,
+      "max_score": 10.0,
+      "threshold": 8.0,
+      "needs_editing": true,
+      "feedback": ["saran 1", "saran 2"],
+      "summary": "Ringkasan review gabungan berbasis pembobotan Google"
+    }
+  agent: review_aggregator
+  context:
+    - eeat_trust_review_task
+    - seo_ux_review_task
+    - people_first_review_task
+
+editing_task:
+  description: >-
+    Lakukan penyuntingan akhir terhadap artikel asli berdasarkan data dari hasil review gabungan.
+    Semua artikel asli dan review gabungan telah disediakan dalam konteks tugas ini.
+
+    Ketentuan:
+    1. Jika review_data.needs_editing = false, pertahankan artikel asli sepenuhnya tanpa perubahan.
+    2. Jika review_data.needs_editing = true, perbaiki artikel asli dengan cermat mengikuti semua poin feedback/saran dari reviewer.
+    3. Pastikan struktur heading, kepadatan materi, dan format MDX tetap terjaga dengan rapi.
+    4. Parse output akhir menjadi format siap insert Supabase dengan struktur JSON persis seperti expected_output.
+
+    PENTING untuk field "content":
+    - HANYA sertakan konten ARTI (body) di bawah frontmatter.
+    - JANGAN sertakan baris pembatas --- frontmatter (karena sudah dipecah ke field terpisah).
+    - JANGAN sertakan mdx codeblock wrapper (seperti ```mdx atau ```).
+    - Bersihkan konten dari syntax wrapper markdown code block apa pun.
+  expected_output: >-
+    JSON object tunggal:
+    {
+      "title": "{title}",
+      "slug": "",
+      "description": "meta description",
+      "content": "...konten body tanpa frontmatter...",
+      "categories": [{suggested_categories}],
+      "author": "Tim Pelajarsenja",
+      "editor": "Fajar Hadi Tama",
+      "alt_text_image": "{alt_text_image}",
+      "ai_generated": true,
+      "is_draft": true,
+      "review_score": 7.8,
+      "review_data": {
+        "scores": {"eeat_trust": 8, "people_first": 8, "seo_ux": 7},
+        "final_weighted_score": 7.8,
+        "max_score": 10.0,
+        "threshold": 8.0,
+        "needs_editing": true,
+        "feedback": ["saran 1", "saran 2"],
+        "summary": "Ringkasan review"
+      }
+    }
+  agent: editor_agent
+  context:
+    - writing_task
+    - aggregate_review_task

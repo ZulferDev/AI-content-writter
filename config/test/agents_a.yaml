@@ -1,0 +1,6 @@
+
+test_agent:
+  role: Test
+  goal: Test
+  backstory: Test
+
