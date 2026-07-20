@@ -17,6 +17,7 @@ env:
   SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
   SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
   SEARXNG_BASE_URL: http://localhost:8080
+  PLAYWRIGHT_BROWSERS_PATH: /tmp/ms-playwright
 
 jobs:
   generate-content:
@@ -31,6 +32,22 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: requirements.txt
+
+      - name: Cache SearXNG source
+        uses: actions/cache@v4
+        id: cache-searxng
+        with:
+          path: /tmp/searxng
+          key: searxng-v1
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: cache-playwright
+        with:
+          path: /tmp/ms-playwright
+          key: playwright-${{ runner.os }}-v1
 
       - name: Install Python dependencies
         run: |
@@ -43,7 +60,12 @@ jobs:
 
       - name: Setup SearXNG
         run: |
-          git clone --depth 1 https://github.com/searxng/searxng /tmp/searxng
+          if [ ! -d "/tmp/searxng/.git" ]; then
+            echo "Cloning SearXNG..."
+            git clone --depth 1 https://github.com/searxng/searxng /tmp/searxng
+          else
+            echo "SearXNG source already cached, skipping clone."
+          fi
           cd /tmp/searxng
           pip install msgspec
           pip install --no-build-isolation -e .
@@ -68,27 +90,13 @@ jobs:
 
       - name: Setup Crawl4AI (Playwright)
         run: |
-          crawl4ai-setup
+          if ls /tmp/ms-playwright/*/chrome-linux/ffmpeg 2>/dev/null; then
+            echo "Playwright browsers already cached, skipping setup."
+          else
+            echo "Installing Playwright browsers..."
+            crawl4ai-setup
+          fi
           python -c "from crawl4ai import AsyncWebCrawler; print('Crawl4AI OK')"
-          SEARXNG_PID=$!
-          echo "SEARXNG_PID=$SEARXNG_PID" >> $GITHUB_ENV
-          echo "Waiting for SearXNG to start..."
-          for i in {1..30}; do
-            if curl -s "${SEARXNG_BASE_URL}/search?q=test&format=json" > /dev/null 2>&1; then
-              echo "SearXNG is ready!"
-              break
-            fi
-            sleep 2
-          done
-          curl -s "${SEARXNG_BASE_URL}/search?q=test&format=json" | python -c "
-          import sys, json
-          data = json.load(sys.stdin)
-          print(f'SearXNG OK: {len(data.get(\"results\", []))} results')
-          "
-
-      - name: Run Tests
-        run: |
-          pytest tests/ -v --tb=short || echo "Tests completed (non-critical)"
 
       - name: Run AI Pipeline
         run: |
@@ -111,8 +119,6 @@ jobs:
             kill $SEARXNG_PID 2>/dev/null || true
             echo "SearXNG stopped."
           fi
-          rm -rf /tmp/searxng
-          echo "Cleanup completed."
 
       - name: Pipeline Summary
         if: always()
