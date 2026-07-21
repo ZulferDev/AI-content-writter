@@ -13,7 +13,6 @@ from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
-import httpx
 import yaml
 
 logging.basicConfig(
@@ -25,19 +24,6 @@ logger = logging.getLogger("ai-pipeline")
 PROJECT_ROOT = Path(__file__).parent
 CONFIG_DIR = PROJECT_ROOT / "config"
 OUTPUT_DIR = PROJECT_ROOT / "output"
-
-SEARXNG_BASE_URL = os.environ.get("SEARXNG_BASE_URL", "http://localhost:8888")
-
-def check_services():
-    """Validate all required services are running."""
-    logger.info("Checking services...")
-    try:
-        with httpx.Client(timeout=5) as client:
-            resp = client.get(f"{SEARXNG_BASE_URL}/search?q=test&format=json")
-            resp.raise_for_status()
-            logger.info(f"SearXNG is running at {SEARXNG_BASE_URL}.")
-    except Exception as e:
-        raise RuntimeError(f"SearXNG service is NOT reachable at {SEARXNG_BASE_URL}: {e}")
 
 def load_niche_config(niche: str = "pendidikan") -> dict:
     config_path = CONFIG_DIR / "niche.yaml"
@@ -106,7 +92,6 @@ def prepare_article(article: dict, allowed_categories: list[str] | None = None) 
     return article
 
 def run_pipeline(niche: str):
-    check_services()
     niche_config = load_niche_config(niche)
 
     from crew.content_crew import IdeationCrew, ArticleCrew

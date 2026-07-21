@@ -3,7 +3,7 @@
 import os
 from pathlib import Path
 from crewai import Agent, Crew, Process, Task
-from tools import SearxngSearchTool, SearxngMultiSearchTool, WebCrawlTool
+from tools import GoogleSearchGroundingTool
 import yaml
 
 CONFIG_DIR = Path(__file__).parent.parent / "config"
@@ -26,7 +26,7 @@ class IdeationCrew:
         ide_agent = Agent(config=self.agents_config["ide_agent"], llm=get_llm(), verbose=True)
         research_agent = Agent(
             config=self.agents_config["research_agent"],
-            tools=[SearxngSearchTool(), SearxngMultiSearchTool(), WebCrawlTool()],
+            tools=[GoogleSearchGroundingTool()],
             llm=get_llm(),
             verbose=True
         )

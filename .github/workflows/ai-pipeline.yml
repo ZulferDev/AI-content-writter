@@ -16,8 +16,6 @@ env:
   GEMINI_API_KEY_FALLBACK: ${{ secrets.GEMINI_API_KEY_FALLBACK }}
   SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
   SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-  SEARXNG_BASE_URL: http://localhost:8080
-  PLAYWRIGHT_BROWSERS_PATH: /tmp/ms-playwright
 
 jobs:
   generate-content:
@@ -35,20 +33,6 @@ jobs:
           cache: 'pip'
           cache-dependency-path: requirements.txt
 
-      - name: Cache SearXNG source
-        uses: actions/cache@v4
-        id: cache-searxng
-        with:
-          path: /tmp/searxng
-          key: searxng-v1
-
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        id: cache-playwright
-        with:
-          path: /tmp/ms-playwright
-          key: playwright-${{ runner.os }}-v1
-
       - name: Install Python dependencies
         run: |
           pip install --upgrade pip
@@ -57,47 +41,6 @@ jobs:
       - name: Run Tests
         run: |
           pytest tests/ -v --tb=short || echo "Tests completed (non-critical)"
-
-      - name: Setup SearXNG
-        run: |
-          if [ ! -d "/tmp/searxng/.git" ]; then
-            echo "Cloning SearXNG..."
-            git clone --depth 1 https://github.com/searxng/searxng /tmp/searxng
-          else
-            echo "SearXNG source already cached, skipping clone."
-          fi
-          cd /tmp/searxng
-          pip install msgspec
-          pip install --no-build-isolation -e .
-          cp $GITHUB_WORKSPACE/config/settings.yml /tmp/searxng/searx/settings.yml
-          export SEARXNG_SETTINGS_PATH=/tmp/searxng/searx/settings.yml
-          cd /tmp/searxng
-          python -m searx.webapp &
-          SEARXNG_PID=$!
-          echo "SEARXNG_PID=$SEARXNG_PID" >> $GITHUB_ENV
-          echo "Waiting for SearXNG to start..."
-          for i in {1..30}; do
-            if curl -s -H "X-Forwarded-For: 127.0.0.1" "${SEARXNG_BASE_URL}/search?q=test&format=json" > /dev/null 2>&1; then
-              echo "SearXNG is ready!"
-              break
-            fi
-            sleep 2
-          done
-          curl -s -H "X-Forwarded-For: 127.0.0.1" "${SEARXNG_BASE_URL}/search?q=test&format=json" | python -c "
-          import sys, json
-          data = json.load(sys.stdin)
-          print(f'SearXNG OK: {len(data.get(\"results\", []))} results')
-          "
-
-      - name: Setup Crawl4AI (Playwright)
-        run: |
-          if ls /tmp/ms-playwright/*/chrome-linux/ffmpeg 2>/dev/null; then
-            echo "Playwright browsers already cached, skipping setup."
-          else
-            echo "Installing Playwright browsers..."
-            crawl4ai-setup
-          fi
-          python -c "from crawl4ai import AsyncWebCrawler; print('Crawl4AI OK')"
 
       - name: Run AI Pipeline
         run: |
@@ -112,14 +55,6 @@ jobs:
           name: ai-pipeline-output-${{ github.run_number }}
           path: output/
           retention-days: 30
-
-      - name: Cleanup
-        if: always()
-        run: |
-          if [ -n "$SEARXNG_PID" ]; then
-            kill $SEARXNG_PID 2>/dev/null || true
-            echo "SearXNG stopped."
-          fi
 
       - name: Pipeline Summary
         if: always()

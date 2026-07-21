@@ -38,11 +38,12 @@ research_task:
     PENTING: Kamu WAJIB meriset KE-LIMA ide tersebut. Jangan skip atau
     abaikan ide manapun. Lakukan langkah berikut untuk SETIAP ide:
 
-    1. Ambil title dari setiap ide sebagai keyword untuk search di SearXNG
-       menggunakan tool `searxng_search` atau `searxng_multi_search`
-    2. Dari hasil search, pilih 5-10 URL yang paling relevan
-    3. Crawl setiap URL menggunakan tool `web_crawl`
-    4. Ringkas semua informasi menjadi satu ringkasan per ide
+    1. Gunakan tool `google_search` untuk meriset setiap ide
+    2. Tool akan mengembalikan ringkasan informatif yang sudah mencakup
+       fakta utama, data pendukung, dan sumber informasi
+    3. Jika perlu detail tambahan, lakukan pencarian lanjutan
+       dengan keyword yang lebih spesifik
+    4. Gunakan hasil riset tersebut sebagai konten field research
 
     Untuk setiap ide, output harus berisi:
     - title: Judul ide asli
