@@ -162,12 +162,12 @@ aggregate_review_task:
     PENTING - Lakukan Pembobotan Skor Sesuai Standar Google:
     1. Ekstrak skor 1-10 dari ketiga aspek.
     2. Hitung Nilai Akhir (Final Weighted Score) dengan rumus bobot berikut:
-       - eeat_trust = Bobot 40% (0.40)
-       - people_first = Bobot 40% (0.40)
+       - eeat_trust = Bobot 60% (0.60)
+       - people_first = Bobot 20% (0.20)
        - seo_ux = Bobot 20% (0.20)
-       Rumus: (eeat_trust * 0.4) + (people_first * 0.4) + (seo_ux * 0.2)
-    3. Tetapkan threshold kelulusan final_weighted_score >= 8.0. 
-       Jika score >= 8.0, maka needs_editing = false. Jika < 8.0, maka needs_editing = true.
+       Rumus: (eeat_trust * 0.6) + (people_first * 0.2) + (seo_ux * 0.2)
+     3. Tetapkan threshold kelulusan final_weighted_score >= 9.0. 
+        Jika score >= 9.0, maka needs_editing = false. Jika < 9.0, maka needs_editing = true.
     4. Satukan seluruh daftar feedback dari ketiga sub-reviewers menjadi satu list tunggal.
     5. Berikan kesimpulan ringkas yang objektif.
   expected_output: >-
@@ -200,7 +200,9 @@ editing_task:
     1. Jika review_data.needs_editing = false, pertahankan artikel asli sepenuhnya tanpa perubahan.
     2. Jika review_data.needs_editing = true, perbaiki artikel asli dengan cermat mengikuti semua poin feedback/saran dari reviewer.
     3. Pastikan struktur heading, kepadatan materi, dan format MDX tetap terjaga dengan rapi.
-    4. Parse output akhir menjadi format siap insert Supabase dengan struktur JSON persis seperti expected_output.
+    4. Set "is_draft": true untuk semua artikel tanpa terkecuali.
+       Tidak ada artikel yang langsung di-publish tanpa review manual.
+    5. Parse output akhir menjadi format siap insert Supabase dengan struktur JSON persis seperti expected_output.
 
     PENTING untuk field "content":
     - HANYA sertakan konten ARTI (body) di bawah frontmatter.
