@@ -180,7 +180,7 @@ aggregate_review_task:
       },
       "final_weighted_score": 7.8,
       "max_score": 10.0,
-      "threshold": 8.0,
+      "threshold": 9.0,
       "needs_editing": true,
       "feedback": ["saran 1", "saran 2"],
       "summary": "Ringkasan review gabungan berbasis pembobotan Google"
@@ -227,7 +227,7 @@ editing_task:
         "scores": {"eeat_trust": 8, "people_first": 8, "seo_ux": 7},
         "final_weighted_score": 7.8,
         "max_score": 10.0,
-        "threshold": 8.0,
+        "threshold": 9.0,
         "needs_editing": true,
         "feedback": ["saran 1", "saran 2"],
         "summary": "Ringkasan review"
