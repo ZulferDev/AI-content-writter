@@ -11,7 +11,7 @@ CONFIG_DIR = Path(__file__).parent.parent / "config"
 def get_llm(model: str = None):
     """Get LLM instance for agent."""
     from crewai import LLM
-    model = model or os.environ.get("CREWAI_DEFAULT_MODEL", "gemini/gemini-3.1-flash-lite")
+    model = model or os.environ.get("CREWAI_DEFAULT_MODEL", "gemini/gemini-3.5-flash-lite")
     return LLM(model=model, temperature=0.7)
 
 class IdeationCrew:
@@ -59,12 +59,12 @@ class ArticleCrew:
 
     def crew(self) -> Crew:
         # Load the updated agents
-        writer_agent = Agent(config=self.agents_config["writer_agent"], llm=get_llm("gemini/gemini-3.5-flash"), verbose=True)
+        writer_agent = Agent(config=self.agents_config["writer_agent"], llm=get_llm("gemini/gemini-3.6-flash"), verbose=True)
         eeat_trust_reviewer = Agent(config=self.agents_config["eeat_trust_reviewer"], llm=get_llm(), verbose=True)
         seo_ux_reviewer = Agent(config=self.agents_config["seo_ux_reviewer"], llm=get_llm(), verbose=True)
         people_first_reviewer = Agent(config=self.agents_config["people_first_reviewer"], llm=get_llm(), verbose=True)
         review_aggregator = Agent(config=self.agents_config["review_aggregator"], llm=get_llm(), verbose=True)
-        editor_agent = Agent(config=self.agents_config["editor_agent"], llm=get_llm("gemini/gemini-3.5-flash"), verbose=True)
+        editor_agent = Agent(config=self.agents_config["editor_agent"], llm=get_llm("gemini/gemini-3.6-flash"), verbose=True)
 
         # Load the tasks
         writing_task = Task(

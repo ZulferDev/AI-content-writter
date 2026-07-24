@@ -13,59 +13,62 @@ ideation_task:
     Kategori yang TERSEDIA (HANYA gunakan ini, JANGAN buat kategori baru):
     {allowed_categories}
 
-    Generate 5 ide konten baru untuk niche "{niche}" dengan
+    Generate 1 ide konten PREMIUM untuk niche "{niche}" dengan
     target audience "{target_audience}".
 
-    Untuk setiap ide, sediakan:
-    1. title: Judul artikel yang menarik dan SEO-friendly
-    2. alt_text_image: Alt text untuk gambar ilustrasi
-    3. reason: Alasan kenapa ide ini dipilih
-    4. purpose: Tujuan konten (apa yang ingin dicapai)
-    5. suggested_categories: Kategori dari daftar yang disediakan (pilih 1-2 kategori)
+    LAKUKAN ANALISIS MENDALAM sebelum menghasilkan ide:
+    1. Analisis gap: apa yang belum dibahas dari konten yang sudah ada?
+    2. Tren terkini: topik apa yang paling relevan untuk audiens saat ini?
+    3. Angle unik: bagaimana pendekatan yang berbeda dan lebih bernilai?
+    4. Dampak maksimal: ide mana yang akan memberikan nilai terbanyak?
 
-    Pastikan ide-ide TIDAK duplikat dari konten yang sudah ada.
-    Variasikan angle dan sudut pandang, dan distribusikan kategori secara merata
-    —prioritaskan kategori yang masih jarang terisi.
+    Untuk ide premium tersebut, sediakan:
+    1. title: Judul artikel yang sangat menarik dan SEO-friendly
+    2. alt_text_image: Alt text untuk gambar ilustrasi
+    3. reason: Alasan mendalam kenapa ide ini dipilih (sertakan analisis gap dan tren)
+    4. purpose: Tujuan konten yang spesifik dan terukur
+    5. suggested_categories: Kategori dari daftar yang disediakan (pilih 1-3 kategori)
+
+    Pastikan ide TIDAK duplikat dari konten yang sudah ada.
   expected_output: >-
-    JSON array dengan 5 ide. Setiap ide memiliki fields:
+    JSON object untuk 1 ide premium. Ide memiliki fields:
     title, alt_text_image, reason, purpose, suggested_categories (as array of strings).
   agent: ide_agent
 
 research_task:
   description: >-
-    Kamu menerima output dari ideation_task yang berisi 5 ide konten.
+    Kamu menerima output dari ideation_task yang berisi 1 ide konten premium.
 
-    PENTING: Kamu WAJIB meriset KE-LIMA ide tersebut. Jangan skip atau
-    abaikan ide manapun. Lakukan langkah berikut untuk SETIAP ide:
+    Lakukan riset SANGAT MENDALAM untuk ide ini. Lakukan MULTIPLE pencarian
+    (minimal 3-5 kali) dengan keyword berbeda untuk mendapatkan perspektif lengkap:
 
-    1. Gunakan tool `google_search` untuk meriset setiap ide
-    2. Tool akan mengembalikan ringkasan informatif yang sudah mencakup
-       fakta utama, data pendukung, dan sumber informasi
-    3. Jika perlu detail tambahan, lakukan pencarian lanjutan
-       dengan keyword yang lebih spesifik
-    4. Gunakan hasil riset tersebut sebagai konten field research
+    1. Gunakan tool `google_search` untuk meriset ide dari berbagai sudut pandang
+    2. Kumpulkan data statistik terbaru, fakta pendukung, dan kutipan otoritatif
+    3. Identifikasi tren, perdebatan, atau perkembangan terkini terkait topik
+    4. Catat sumber referensi untuk setiap fakta (URL, publikasi, tahun)
 
-    Untuk setiap ide, output harus berisi:
+    Output harus berisi:
     - title: Judul ide asli
     - alt_text_image: Alt text ide asli
     - reason: Alasan ide asli
     - purpose: Tujuan ide asli
     - suggested_categories: Kategori ide asli
-    - research: Ringkasan hasil riset dalam format markdown, lengkap dengan sumber (sources)
+    - research: Ringkasan hasil riset KOMPREHENSIF dalam format markdown,
+      lengkap dengan data statistik, fakta, dan sumber (sources)
 
-    Output harus berupa JSON array dengan 5 item (satu per ide, yang memuat detail ide asli dan research-nya).
+    Output harus berupa JSON object untuk 1 ide dengan research yang sangat mendalam.
   expected_output: >-
-    JSON array dengan 5 item. Setiap item memiliki fields:
+    JSON object untuk 1 ide premium. Memiliki fields:
     title, alt_text_image, reason, purpose, suggested_categories, research.
   agent: research_agent
   context:
     - ideation_task
 
-# ---- Phase 2: Per-Article Processing (Sequential, One by One) ----
+# ---- Phase 2: Per-Article Processing ----
 
 writing_task:
   description: >-
-    Tulis artikel MDX berkualitas tinggi untuk satu topik berikut dengan menerapkan teknik penulisan
+    Tulis artikel Markdown berkualitas tinggi untuk satu topik berikut dengan menerapkan teknik penulisan
     ber-retensi tinggi (adiktif layaknya video pendek, menggunakan buckets brigades, cliffhanger, dan tanpa lemak tulisan):
     
     Topik: {title}
@@ -83,14 +86,16 @@ writing_task:
         - author: "Tim Pelajarsenja"
         - editor: "Fajar Hadi Tama"
         - alt_text_image: "{alt_text_image}"
-     2. Target: 1500-1700 kata
+    2. Target: 1500-1700 kata
     3. Gunakan heading structure yang rapi: H1 -> H2 -> H3
     4. Pastikan konten berbasis fakta dari riset pendukung yang disediakan
     5. Jangan membuat data palsu
-    6. Gunakan placeholder [DATA: butuh sumber] jika perlu data tambahan yang tidak ada di riset
-    7. Paragraf pendek (maks 2-3 kalimat) agar mobile-friendly dan penuh dengan white space (scannable).
+    6. Paragraf pendek (maks 2-3 kalimat) agar mobile-friendly dan penuh dengan white space (scannable).
+    7. tambahkan Daftar halaman atas setelah pembukaan
+    8. Jangan terlalu sering buat cerita dengan subjek kamu lebih baik buat dengan aku
+    8. Jangan gunakan pembukaan "Bayangkan hal ini" buat lebih natural berceritanya
   expected_output: >-
-    Artikel MDX lengkap dengan frontmatter dan body artikel.
+    Artikel Markdown lengkap dengan frontmatter dan body artikel.
   agent: writer_agent
 
 eeat_trust_review_task:
@@ -99,8 +104,13 @@ eeat_trust_review_task:
     Riset acuan sebagai pembanding: {research_summary}
 
     Berikan skor 1-10 untuk aspek E-E-A-T & Trust:
-    - Experience: Apakah ada elemen pengalaman langsung/perspektif unik dan bukan sekadar rangkuman informasi biasa?
-    - Trust & Accuracy: Apakah data/statistik valid berdasarkan riset acuan? Apakah bebas dari halusinasi data atau klaim tanpa dasar?
+    - Experience (Pengalaman): Apakah konten menunjukkan keterlibatan langsung, bukti pengujian nyata, atau perspektif unik dari pembuatnya, bukan sekadar merangkum informasi dari sumber lain?
+    - Expertise (Keahlian): Apakah konten ditulis atau ditinjau oleh pihak yang kompeten di bidangnya, didukung oleh fakta yang akurat, serta bebas dari kesalahan dasar atau klaim tanpa bukti?
+    - Authoritativeness (Otoritas): Apakah jelas siapa pembuat kontennya (profil/latar belakang penulis), dan apakah situs Anda dikenal serta diakui sebagai sumber yang dapat diandalkan untuk topik tersebut?
+
+    - Trustworthiness (Kredibilitas & Keandalan): Apakah tujuan utama pembuatan konten ini murni untuk membantu pengguna (bukan memanipulasi algoritma), disajikan secara jujur tanpa clickbait, serta transparan mengenai proses pembuatannya (termasuk penggunaan AI/otomatisasi)?
+
+    - User Satisfaction & Page Experience (Kepuasan Pembaca & Pengalaman Halaman): Apakah penyajiannya rapi dan profesional, serta memberikan jawaban komprehensif sehingga pembaca merasa puas tanpa perlu mencari sumber informasi lain?
     
     Berikan skor (1-10) dan feedback perbaikan yang spesifik dan konkret.
   expected_output: >-
@@ -128,7 +138,10 @@ seo_ux_review_task:
     {
       "aspect": "seo_ux",
       "score": 7,
-      "feedback": ["saran 1", "saran 2"]
+      "feedback": {
+        "ai_actions": ["perbaiki meta description jadi < 155 char", "tambah bucket brigade di H2 ke-2"],
+        "user_actions": ["validasi desain visual dengan user testing"]
+      }
     }
   agent: seo_ux_reviewer
   context:
@@ -149,7 +162,10 @@ people_first_review_task:
     {
       "aspect": "people_first",
       "score": 8,
-      "feedback": ["saran 1", "saran 2"]
+      "feedback": {
+        "ai_actions": ["hapus filler words di intro", "tambah micro-reward di akhir H2"],
+        "user_actions": ["tambah insight unik dari domain expertise"]
+      }
     }
   agent: people_first_reviewer
   context:
@@ -168,7 +184,9 @@ aggregate_review_task:
        Rumus: (eeat_trust * 0.6) + (people_first * 0.2) + (seo_ux * 0.2)
      3. Tetapkan threshold kelulusan final_weighted_score >= 9.0. 
         Jika score >= 9.0, maka needs_editing = false. Jika < 9.0, maka needs_editing = true.
-    4. Satukan seluruh daftar feedback dari ketiga sub-reviewers menjadi satu list tunggal.
+    4. Gabungkan seluruh daftar feedback dari ketiga sub-reviewers, tetap pisahkan antara ai_actions dan user_actions:
+       - Gabungkan semua ai_actions dari ketiga reviewer ke satu list
+       - Gabungkan semua user_actions dari ketiga reviewer ke satu list
     5. Berikan kesimpulan ringkas yang objektif.
   expected_output: >-
     JSON object gabungan:
@@ -182,7 +200,10 @@ aggregate_review_task:
       "max_score": 10.0,
       "threshold": 9.0,
       "needs_editing": true,
-      "feedback": ["saran 1", "saran 2"],
+      "feedback": {
+        "ai_actions": ["perbaiki struktur heading H2", "tambah kutipan sumber di paragraf 3", "perbaiki meta description"],
+        "user_actions": ["tambah pengalaman pribadi penulis", "verifikasi statistik ke ahli", "tambah insight unik"]
+      },
       "summary": "Ringkasan review gabungan berbasis pembobotan Google"
     }
   agent: review_aggregator
@@ -198,7 +219,7 @@ editing_task:
 
     Ketentuan:
     1. Jika review_data.needs_editing = false, pertahankan artikel asli sepenuhnya tanpa perubahan.
-    2. Jika review_data.needs_editing = true, perbaiki artikel asli dengan cermat mengikuti semua poin feedback/saran dari reviewer.
+    2. Jika review_data.needs_editing = true, perbaiki artikel asli dengan cermat mengikuti poin feedback dari ai_actions (saran yang bisa diperbaiki AI). JANGAN coba perbaiki user_actions — itu tugas manusia.
     3. Pastikan struktur heading, kepadatan materi, dan format MDX tetap terjaga dengan rapi.
     4. Set "is_draft": true untuk semua artikel tanpa terkecuali.
        Tidak ada artikel yang langsung di-publish tanpa review manual.
@@ -229,7 +250,10 @@ editing_task:
         "max_score": 10.0,
         "threshold": 9.0,
         "needs_editing": true,
-        "feedback": ["saran 1", "saran 2"],
+        "feedback": {
+          "ai_actions": ["perbaiki struktur heading H2", "tambah kutipan sumber di paragraf 3", "perbaiki meta description"],
+          "user_actions": ["tambah pengalaman pribadi penulis", "verifikasi statistik ke ahli", "tambah insight unik"]
+        },
         "summary": "Ringkasan review"
       }
     }

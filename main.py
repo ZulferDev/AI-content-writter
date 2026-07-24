@@ -57,13 +57,6 @@ def parse_json_from_output(output: str) -> dict:
         return json.loads(json_match.group())
     raise ValueError(f"Could not parse JSON from output: {output}")
 
-def parse_json_list_from_output(output: str) -> list[dict]:
-    """Extract JSON list from crew output."""
-    json_match = re.search(r"\[.*\]", output, re.DOTALL)
-    if json_match:
-        return json.loads(json_match.group())
-    raise ValueError(f"Could not parse JSON list from output: {output}")
-
 def prepare_article(article: dict, allowed_categories: list[str] | None = None) -> dict | None:
     """Clean and validate article before insert. Returns None if duplicate."""
     from utils.supabase_client import SupabaseClient
@@ -122,50 +115,46 @@ def run_pipeline(niche: str):
         "allowed_categories": ", ".join(allowed_categories),
     }
     phase1_result = IdeationCrew().crew().kickoff(inputs=phase1_inputs)
-    ideas = parse_json_list_from_output(str(phase1_result))
+    idea = parse_json_from_output(str(phase1_result))
 
     all_articles = []
     errors = []
 
-    for i, idea in enumerate(ideas):
-        try:
-            logger.info(f"Processing article {i+1}/{len(ideas)}: {idea.get('title', 'Untitled')}")
-            article_inputs = {
-                "title": idea["title"],
-                "purpose": idea.get("purpose", ""),
-                "target_audience": niche_config.get("target_audience", "pelajar Indonesia"),
-                "suggested_categories": ", ".join(idea.get("suggested_categories", [])),
-                "research_summary": idea.get("research", ""),
-                "alt_text_image": idea.get("alt_text_image", ""),
-            }
-            result = ArticleCrew().crew().kickoff(inputs=article_inputs)
-            article = parse_json_from_output(str(result))
+    try:
+        logger.info(f"Processing article: {idea.get('title', 'Untitled')}")
+        article_inputs = {
+            "title": idea["title"],
+            "purpose": idea.get("purpose", ""),
+            "target_audience": niche_config.get("target_audience", "pelajar Indonesia"),
+            "suggested_categories": ", ".join(idea.get("suggested_categories", [])),
+            "research_summary": idea.get("research", ""),
+            "alt_text_image": idea.get("alt_text_image", ""),
+        }
+        result = ArticleCrew().crew().kickoff(inputs=article_inputs)
+        article = parse_json_from_output(str(result))
 
-            article = prepare_article(article, allowed_categories)
-            if not article:
-                continue
-
-            if article["slug"] in existing_slugs:
-                logger.warning(f"Duplicate slug '{article['slug']}' — skipping '{article.get('title')}'")
-                errors.append({"index": i, "title": article.get("title", "Unknown"), "error": "Duplicate slug"})
-                continue
-
+        article = prepare_article(article, allowed_categories)
+        if article and article["slug"] not in existing_slugs:
             insert_to_supabase([article])
             existing_slugs.add(article["slug"])
             all_articles.append(article)
-            logger.info(f"Article {i+1} inserted successfully (slug: {article.get('slug')})")
+            logger.info(f"Article inserted successfully (slug: {article.get('slug')})")
+        elif article:
+            logger.warning(f"Duplicate slug '{article['slug']}' — skipping '{article.get('title')}'")
+            errors.append({"title": article.get("title", "Unknown"), "error": "Duplicate slug"})
+        else:
+            logger.warning("Article preparation returned None — skipping")
 
-        except Exception as e:
-            logger.error(f"Failed to process article {i+1}: {e}", exc_info=True)
-            errors.append({"index": i, "title": idea.get("title", "Unknown"), "error": str(e)})
-            continue
+    except Exception as e:
+        logger.error(f"Failed to process article: {e}", exc_info=True)
+        errors.append({"title": idea.get("title", "Unknown"), "error": str(e)})
 
     if all_articles:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         save_output(all_articles, OUTPUT_DIR / f"final_{timestamp}.json")
 
     if errors:
-        logger.warning(f"Completed with {len(errors)} errors out of {len(ideas)} articles")
+        logger.warning(f"Completed with {len(errors)} error(s)")
         save_output(errors, OUTPUT_DIR / f"errors_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
 
     logger.info(f"Pipeline complete: {len(all_articles)} articles saved, {len(errors)} errors")

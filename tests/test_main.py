@@ -2,7 +2,7 @@
 
 import json
 import pytest
-from main import strip_mdx_frontmatter, parse_json_from_output, parse_json_list_from_output
+from main import strip_mdx_frontmatter, parse_json_from_output
 
 
 class TestStripMdxFrontmatter:
@@ -54,13 +54,3 @@ class TestParseJsonFromOutput:
         assert result["outer"]["inner"] == [1, 2, 3]
 
 
-class TestParseJsonListFromOutput:
-    def test_extracts_json_array(self):
-        output = 'Results: [{"id": 1}, {"id": 2}]'
-        result = parse_json_list_from_output(output)
-        assert len(result) == 2
-        assert result[0]["id"] == 1
-
-    def test_raises_on_no_array(self):
-        with pytest.raises(ValueError, match="Could not parse JSON"):
-            parse_json_list_from_output("No array here")

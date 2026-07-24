@@ -16,7 +16,7 @@ class TestFinalArticle:
                 "scores": {"eeat_trust": 8, "people_first": 9, "seo_ux": 7},
                 "final_weighted_score": 8.5,
                 "needs_editing": False,
-                "feedback": [],
+                "feedback": {"ai_actions": [], "user_actions": []},
                 "summary": "Good article",
             },
         }
@@ -37,7 +37,7 @@ class TestFinalArticle:
                 "scores": {"eeat_trust": 8, "people_first": 8, "seo_ux": 8},
                 "final_weighted_score": 8.0,
                 "needs_editing": False,
-                "feedback": [],
+                "feedback": {"ai_actions": [], "user_actions": []},
                 "summary": "Solid article",
             },
         }
@@ -57,7 +57,7 @@ class TestFinalArticle:
                 "scores": {"eeat_trust": 7, "people_first": 8, "seo_ux": 7},
                 "final_weighted_score": 7.5,
                 "needs_editing": True,
-                "feedback": ["Add more sources"],
+                "feedback": {"ai_actions": ["Add more sources"], "user_actions": []},
                 "summary": "Needs work",
             },
         }
@@ -77,7 +77,7 @@ class TestFinalArticle:
                 "max_score": 10.0,
                 "threshold": 8.0,
                 "needs_editing": False,
-                "feedback": [],
+                "feedback": {"ai_actions": [], "user_actions": []},
                 "summary": "Pass",
             },
         }

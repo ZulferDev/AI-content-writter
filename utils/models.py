@@ -50,7 +50,7 @@ class ReviewData(BaseModel):
     max_score: float = 10.0
     threshold: float = 8.0
     needs_editing: bool
-    feedback: list[str] = Field(default_factory=list)
+    feedback: dict = Field(default_factory=lambda: {"ai_actions": [], "user_actions": []})
     summary: str = Field(default="")
 
 
